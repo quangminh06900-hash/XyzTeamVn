@@ -1,1 +1,531 @@
 
+-- SRC BY WCD6
+
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local BuyCase = ReplicatedStorage.Remotes:WaitForChild("BuyCase")
+local RunService = game:GetService("RunService")
+local vu = game:GetService("VirtualUser")
+local Workspace = game:GetService("Workspace")
+local UIS = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ItemData = require(ReplicatedStorage.Modules:WaitForChild("Item"))
+local TradeItemRemote = ReplicatedStorage.Remotes:WaitForChild("TradeItem")
+local TradeRemote = ReplicatedStorage.Remotes:WaitForChild("Trade")
+local TradingUI = LocalPlayer.PlayerGui.Main.MainTradingFrame
+local LocalSkins = LocalPlayer:WaitForChild("SkinsFolder")
+local EquipItem = ReplicatedStorage.Remotes:WaitForChild("EquipItem")
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+local Mouse = LocalPlayer:GetMouse()
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local HttpService = game:GetService("HttpService")
+local player = game:GetService("Players").LocalPlayer
+local RS = game:GetService("RunService")
+local RSconn = nil
+local TradeItem = ReplicatedStorage.Remotes:WaitForChild("TradeItem")
+
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+
+task.wait(1)
+
+local player = Players.LocalPlayer
+if not player then
+    repeat task.wait() until Players.LocalPlayer
+    player = Players.LocalPlayer
+end
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({
+    Name = "Mtric HUB - MVS - By Minhbeo (idk?)",
+    LoadingTitle = "Mtric HUB- MVS",
+    LoadingSubtitle = "By ! MINHBEO (DecentHolograms)",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "FastDexConfig",
+        FileName = "MVSFastDex"
+    },
+    KeySystem = false
+})
+
+local function getTeamFrames()
+    local ok, redFrame, blueFrame = pcall(function()
+        local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+        if not pg then return nil, nil end
+        local main = pg:FindFirstChild("Main")
+        if not main then return nil, nil end
+        local mgf = main:FindFirstChild("MainGameFrame")
+        if not mgf then return nil, nil end
+        local pf = mgf:FindFirstChild("PlayersFrame")
+        if not pf then return nil, nil end
+        return pf:FindFirstChild("TeamRedFrame"), pf:FindFirstChild("TeamBlueFrame")
+    end)
+    if not ok or not redFrame or not blueFrame then
+        return nil, nil
+    end
+    return redFrame, blueFrame
+end
+
+local function readNames(frame)
+    local names = {}
+    for _, child in ipairs(frame:GetChildren()) do
+        if child:IsA("Frame") then
+            table.insert(names, child.Name)
+        end
+    end
+    return names
+end
+
+local function normalizeName(n)
+    return tostring(n):gsub("%s+", "")
+end
+
+local function getEnemies()
+    local redFrame, blueFrame = getTeamFrames()
+    if not redFrame or not blueFrame then
+        return {}
+    end
+
+    local redRaw = readNames(redFrame)
+    local blueRaw = readNames(blueFrame)
+
+    local youInRed, youInBlue = false, false
+    local redSet, blueSet = {}, {}
+
+    for _, n in ipairs(redRaw) do
+        local nn = normalizeName(n)
+        redSet[nn] = true
+        if nn == normalizeName(LocalPlayer.Name) then
+            youInRed = true
+        end
+    end
+
+    for _, n in ipairs(blueRaw) do
+        local nn = normalizeName(n)
+        blueSet[nn] = true
+        if nn == normalizeName(LocalPlayer.Name) then
+            youInBlue = true
+        end
+    end
+    if not (youInRed or youInBlue) then
+        return {}
+    end
+
+    local enemySet = youInRed and blueSet or redSet
+    local enemies = {}
+
+    for name,_ in pairs(enemySet) do
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if normalizeName(plr.Name) == name and plr ~= LocalPlayer then
+                table.insert(enemies, plr)
+            end
+        end
+    end
+
+    return enemies
+end
+
+local function openInventoryViewer(targetUsername)
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local UserInputService = game:GetService("UserInputService")
+    local RunService = game:GetService("RunService")
+    local TweenService = game:GetService("TweenService")
+
+    local player = Players.LocalPlayer
+    local playerGui = player:WaitForChild("PlayerGui")
+
+    if playerGui:FindFirstChild("FastDexItemViewer") then
+        playerGui:FindFirstChild("FastDexItemViewer"):Destroy()
+    end
+
+    local TARGET_USERNAME = targetUsername
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "FastDexItemViewer"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.IgnoreGuiInset = true
+    screenGui.Parent = playerGui
+
+    local blur = Instance.new("BlurEffect")
+    blur.Size = 0
+    blur.Parent = game.Lighting
+
+    local function isMobile()
+        return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+    end
+
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    mainFrame.Size = isMobile() and UDim2.new(0.88, 0, 0, 320) or UDim2.new(0, 550, 0, 320)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ClipsDescendants = true
+    mainFrame.Parent = screenGui
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 15)
+    mainCorner.Parent = mainFrame
+
+    local mainStroke = Instance.new("UIStroke")
+    mainStroke.Color = Color3.fromRGB(100, 100, 120)
+    mainStroke.Thickness = 1
+    mainStroke.Transparency = 0.7
+    mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    mainStroke.Parent = mainFrame
+
+    local headerGradient = Instance.new("Frame")
+    headerGradient.Name = "Header"
+    headerGradient.Size = UDim2.new(1, 0, 0, 28)
+    headerGradient.BackgroundColor3 = Color3.fromRGB(255, 107, 53)
+    headerGradient.BorderSizePixel = 0
+    headerGradient.Parent = mainFrame
+
+    local headerGrad = Instance.new("UIGradient")
+    headerGrad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 107, 53)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 69, 0))
+    }
+    headerGrad.Rotation = 90
+    headerGrad.Parent = headerGradient
+
+    local headerCorner = Instance.new("UICorner")
+    headerCorner.CornerRadius = UDim.new(0, 15)
+    headerCorner.Parent = headerGradient
+
+    local headerCover = Instance.new("Frame")
+    headerCover.Size = UDim2.new(1, 0, 0, 15)
+    headerCover.Position = UDim2.new(0, 0, 1, -15)
+    headerCover.BackgroundColor3 = Color3.fromRGB(255, 69, 0)
+    headerCover.BorderSizePixel = 0
+    headerCover.Parent = headerGradient
+
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -50, 1, 0)
+    titleLabel.Position = UDim2.new(0, 15, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "FastDex Inventory Viewer"
+    titleLabel.TextColor3 = Color3.new(1, 1, 1)
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextSize = isMobile() and 12 or 14
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Parent = headerGradient
+
+    local closeButton = Instance.new("TextButton")
+    closeButton.Size = UDim2.new(0, 22, 0, 22)
+    closeButton.Position = UDim2.new(1, -30, 0.5, -11)
+    closeButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+    closeButton.Text = "X"
+    closeButton.TextColor3 = Color3.new(1, 1, 1)
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.TextSize = 14
+    closeButton.BorderSizePixel = 0
+    closeButton.Parent = headerGradient
+
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.Parent = closeButton
+
+    local isDraggingWindow = false
+    local dragStart = nil
+    local startPos = nil
+
+    headerGradient.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isDraggingWindow = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if isDraggingWindow and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            mainFrame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isDraggingWindow = false
+        end
+    end)
+
+    local contentFrame = Instance.new("Frame")
+    contentFrame.Size = UDim2.new(1, 0, 1, -45)
+    contentFrame.Position = UDim2.new(0, 0, 0, 45)
+    contentFrame.BackgroundTransparency = 1
+    contentFrame.BorderSizePixel = 0
+    contentFrame.Parent = mainFrame
+
+    local scrollFrame = Instance.new("ScrollingFrame")
+    scrollFrame.Size = UDim2.new(1, -20, 1, -20) 
+    scrollFrame.Position = UDim2.new(0, 10, 0, 10) 
+    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.BorderSizePixel = 0
+    scrollFrame.ScrollBarThickness = 4
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 107, 53)
+    scrollFrame.ScrollBarImageTransparency = 0.7
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scrollFrame.Parent = contentFrame
+
+    local gridLayout = Instance.new("UIGridLayout")
+    gridLayout.CellSize = isMobile() and UDim2.new(0.48, 0, 0, 170) or UDim2.new(0, 240, 0, 170)
+    gridLayout.CellPadding = UDim2.new(0, 10, 0, 10) 
+    gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center 
+    gridLayout.Parent = scrollFrame
+
+    local padding = Instance.new("UIPadding")
+    padding.PaddingTop = UDim.new(0, 5)
+    padding.PaddingBottom = UDim.new(0, 5)
+    padding.Parent = scrollFrame
+
+    local errorLabel = Instance.new("TextLabel")
+    errorLabel.Size = UDim2.new(1, 0, 1, 0)
+    errorLabel.BackgroundTransparency = 1
+    errorLabel.Text = ""
+    errorLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    errorLabel.Font = Enum.Font.GothamBold
+    errorLabel.TextSize = 18
+    errorLabel.Visible = false
+    errorLabel.Parent = contentFrame
+
+    local viewerBlur = Instance.new("BlurEffect")
+    viewerBlur.Size = 0
+    viewerBlur.Parent = game.Lighting
+
+    local fullscreenFrame = Instance.new("Frame")
+    fullscreenFrame.Name = "FullscreenViewer"
+    fullscreenFrame.Size = UDim2.new(1, 0, 1, 0)
+    fullscreenFrame.Position = UDim2.new(0, 0, 0, 0)
+    fullscreenFrame.BackgroundTransparency = 1
+    fullscreenFrame.BorderSizePixel = 0
+    fullscreenFrame.Visible = false
+    fullscreenFrame.ZIndex = 100
+    fullscreenFrame.Active = true
+    fullscreenFrame.Parent = screenGui
+
+    local fullViewFrame = Instance.new("Frame")
+    fullViewFrame.Name = "ViewFrame"
+    fullViewFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    fullViewFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    fullViewFrame.Size = isMobile() and UDim2.new(0.88, 0, 0, 300) or UDim2.new(0, 380, 0, 310)
+    fullViewFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+    fullViewFrame.BorderSizePixel = 0
+    fullViewFrame.ZIndex = 101
+    fullViewFrame.Active = true
+    fullViewFrame.Parent = fullscreenFrame
+
+    local fullCorner = Instance.new("UICorner")
+    fullCorner.CornerRadius = UDim.new(0, 20)
+    fullCorner.Parent = fullViewFrame
+
+    local fullStroke = Instance.new("UIStroke")
+    fullStroke.Color = Color3.fromRGB(255, 107, 53)
+    fullStroke.Thickness = 2
+    fullStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    fullStroke.Parent = fullViewFrame
+
+    local isDraggingViewer = false
+    local viewerDragStart = nil
+    local viewerStartPos = nil
+
+    local fullHeader = Instance.new("Frame")
+    fullHeader.Size = UDim2.new(1, 0, 0, 32)
+    fullHeader.BackgroundColor3 = Color3.fromRGB(255, 107, 53)
+    fullHeader.BorderSizePixel = 0
+    fullHeader.ZIndex = 101
+    fullHeader.Parent = fullViewFrame
+
+    fullHeader.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isDraggingViewer = true
+            viewerDragStart = input.Position
+            viewerStartPos = fullViewFrame.Position
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if isDraggingViewer and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - viewerDragStart
+            fullViewFrame.Position = UDim2.new(
+                viewerStartPos.X.Scale,
+                viewerStartPos.X.Offset + delta.X,
+                viewerStartPos.Y.Scale,
+                viewerStartPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isDraggingViewer = false
+        end
+    end)
+
+    local fullHeaderCorner = Instance.new("UICorner")
+    fullHeaderCorner.CornerRadius = UDim.new(0, 20)
+    fullHeaderCorner.Parent = fullHeader
+
+    local fullHeaderCover = Instance.new("Frame")
+    fullHeaderCover.Size = UDim2.new(1, 0, 0, 20)
+    fullHeaderCover.Position = UDim2.new(0, 0, 1, -20)
+    fullHeaderCover.BackgroundColor3 = Color3.fromRGB(255, 107, 53)
+    fullHeaderCover.BorderSizePixel = 0
+    fullHeaderCover.ZIndex = 101
+    fullHeaderCover.Parent = fullHeader
+
+    local fullTitleLabel = Instance.new("TextLabel")
+    fullTitleLabel.Size = UDim2.new(1, -50, 1, 0)
+    fullTitleLabel.Position = UDim2.new(0, 10, 0, 0)
+    fullTitleLabel.BackgroundTransparency = 1
+    fullTitleLabel.Text = "Item Preview"
+    fullTitleLabel.TextColor3 = Color3.new(1, 1, 1)
+    fullTitleLabel.Font = Enum.Font.GothamBold
+    fullTitleLabel.TextSize = isMobile() and 12 or 14
+    fullTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    fullTitleLabel.ZIndex = 101
+    fullTitleLabel.Parent = fullHeader
+
+    local fullCloseButton = Instance.new("TextButton")
+    fullCloseButton.Size = UDim2.new(0, 24, 0, 24)
+    fullCloseButton.Position = UDim2.new(1, -30, 0.5, -12)
+    fullCloseButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+    fullCloseButton.Text = "X"
+    fullCloseButton.TextColor3 = Color3.new(1, 1, 1)
+    fullCloseButton.Font = Enum.Font.GothamBold
+    fullCloseButton.TextSize = 14
+    fullCloseButton.BorderSizePixel = 0
+    fullCloseButton.ZIndex = 102
+    fullCloseButton.Parent = fullHeader
+
+    local fullCloseCorner = Instance.new("UICorner")
+    fullCloseCorner.CornerRadius = UDim.new(0, 8)
+    fullCloseCorner.Parent = fullCloseButton
+
+    local fullViewportFrame = Instance.new("ViewportFrame")
+    fullViewportFrame.Size = UDim2.new(1, -14, 1, -46)
+    fullViewportFrame.Position = UDim2.new(0, 7, 0, 38)
+    fullViewportFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+    fullViewportFrame.BorderSizePixel = 0
+    fullViewportFrame.ZIndex = 101
+    fullViewportFrame.Parent = fullViewFrame
+
+    local fullViewportCorner = Instance.new("UICorner")
+    fullViewportCorner.CornerRadius = UDim.new(0, 15)
+    fullViewportCorner.Parent = fullViewportFrame
+
+    local fullCamera = Instance.new("Camera")
+    fullCamera.Parent = fullViewportFrame
+    fullViewportFrame.CurrentCamera = fullCamera
+
+    local function openFullscreen(item, itemName, count)
+        fullTitleLabel.Text = itemName .. " x" .. count
+        
+        for _, child in pairs(fullViewportFrame:GetChildren()) do
+            if child:IsA("Model") then
+                child:Destroy()
+            end
+        end
+        
+        local model
+        if item:IsA("Model") then
+            model = item:Clone()
+            model.Parent = fullViewportFrame
+        elseif item:IsA("BasePart") then
+            model = Instance.new("Model")
+            local clone = item:Clone()
+            clone.Parent = model
+            model.PrimaryPart = clone
+            model.Parent = fullViewportFrame
+        end
+        
+        if not model then return end
+        
+        local cf, size = model:GetBoundingBox()
+        local maxDim = math.max(size.X, size.Y, size.Z)
+        local distance = maxDim * 2.5
+        
+        local rotationX, rotationY = -15, 0
+        local dragging = false
+        local hovering = false
+        local lastPos = Vector2.zero
+        
+        local function updateCamera()
+            local center = cf.Position
+            local offset = CFrame.new(0, 0, distance)
+            local rotation = CFrame.Angles(0, math.rad(rotationY), 0) * CFrame.Angles(math.rad(rotationX), 0, 0)
+            local camCF = CFrame.new(center) * rotation * offset
+            fullCamera.CFrame = CFrame.lookAt(camCF.Position, center)
+        end
+        
+        local connections = {}
+        
+        table.insert(connections, fullViewportFrame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 
+            or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                lastPos = input.Position
+            end
+        end))
+        
+        table.insert(connections, fullViewportFrame.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end))
+        
+        table.insert(connections, fullViewportFrame.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - lastPos
+                lastPos = input.Position
+                rotationY = rotationY - delta.X * 0.5
+                rotationX = math.clamp(rotationX - delta.Y * 0.5, -80, 80)
+            end
+            if input.UserInputType == Enum.UserInputType.MouseWheel and hovering then
+                distance = math.clamp(distance - (input.Position.Z * 2), maxDim * 0.5, maxDim * 10)
+            end
+        end))
+        
+        table.insert(connections, fullViewportFrame.MouseEnter:Connect(function()
+            hovering = true
+        end))
+        
+        table.insert(connections, fullViewportFrame.MouseLeave:Connect(function()
+            hovering = false
+        end))
+        
+        local renderConn
+        renderConn = RunService.RenderStepped:Connect(function()
+            if model and fullCamera and fullscreenFrame.Visible then
+                if not dragging then
+                    rotationY = rotationY + 0.008 * 60
+                end
+                updateCamera()
+            end
+        end)
+        table.insert(connections, renderConn)
+        
+        local function closeFullscreen()
+            for _, conn in pairs(connections) do
+                conn:Disconnect()
+            end
+            TweenService:Create(viewerBlur, TweenInfo.new(0.2), {Size = 0}):Play()
+            mainFrame.Visible = true
+            
